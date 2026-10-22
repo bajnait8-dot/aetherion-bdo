@@ -28,6 +28,8 @@ function sessionCookieDomain(): string | undefined {
 
 const COOKIE_DOMAIN = sessionCookieDomain();
 const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 gün
+/** Giriş akışı çerezlerinin ömrü — Discord onayını bekleyecek kadar uzun */
+const OAUTH_AKIS_OMRU = 30 * 60;
 
 /**
  * Oturum okumasını geçici veritabanı kesintisine dayanıklı yapar.
@@ -72,7 +74,11 @@ export const authOptions: NextAuthOptions = {
         sameSite: "lax" as const,
         path: "/",
         secure: useSecure,
-        maxAge: 900,
+        // 15 dk kısa geliyordu: Discord onay ekranı açık beklenince ya da
+        // sekme bir süre bekletilince çerez düşüyor, dönüşte "State cookie
+        // was missing" alıyorduk. Yarım saat onay için fazlasıyla yeterli,
+        // tek kullanımlık olduğu için uzatmanın bir maliyeti yok.
+        maxAge: OAUTH_AKIS_OMRU,
       },
     },
     pkceCodeVerifier: {
@@ -82,7 +88,7 @@ export const authOptions: NextAuthOptions = {
         sameSite: "lax" as const,
         path: "/",
         secure: useSecure,
-        maxAge: 900,
+        maxAge: OAUTH_AKIS_OMRU,
       },
     },
   },
