@@ -108,8 +108,37 @@ function toRow(r: GeminiRaw): GeminiRow {
   };
 }
 
+/**
+ * Sağlayıcı hatasını okunur bir cümleye çevirir.
+ *
+ * Eskiden Gemini'nin ham JSON gövdesi olduğu gibi kullanıcıya gidiyordu;
+ * kredi bittiğinde ekranda 402'lik bir blok beliriyor, kimse ne olduğunu
+ * anlamayıp "yükleyemiyoruz" diyordu. Ham gövde artık yalnız sunucu
+ * günlüğüne yazılıyor.
+ */
+function geminiHatasi(status: number, govde: string): string {
+  const alt = govde.toLowerCase();
+  const companion = " Companion kurulu olanlar Yönetim → Oyundan rapor ile görsele hiç gerek kalmadan yükleyebilir.";
+  if (status === 402 || alt.includes("credits are depleted") || alt.includes("resource_exhausted")) {
+    return "Görsel okuma servisinin (Gemini) kredisi bitmiş. Yöneticiye haber verin; krediyi yükleyince görsel yükleme tekrar çalışır." + companion;
+  }
+  if (status === 429) {
+    return "Görsel okuma servisi şu an çok yoğun (kota doldu). Birkaç dakika sonra tekrar deneyin." + companion;
+  }
+  if (status === 401 || status === 403) {
+    return "Görsel okuma servisinin anahtarı geçersiz ya da yetkisiz. Yöneticiye haber verin." + companion;
+  }
+  if (status >= 500) {
+    return "Görsel okuma servisi şu an cevap vermiyor. Biraz sonra tekrar deneyin." + companion;
+  }
+  return `Görsel okunamadı (servis ${status} döndü).` + companion;
+}
+
 async function analyzeWithGemini(imageBase64: string, mimeType: string, siteNames: string[]): Promise<GeminiRow[]> {
   const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Görsel okuma servisi ayarlı değil (GEMINI_API_KEY yok). Yöneticiye haber verin.");
+  }
   const nameList = siteNames.join(", ");
   const prompt = `BDO savaş istatistik tablosu. Her satır için JSON dizisi döndür. Sadece JSON, başka hiçbir şey yazma.
 
@@ -145,7 +174,9 @@ Kayıtlı adlar: ${nameList}`;
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`Gemini API hatası: ${err}`);
+    // Ham gövde günlüğe: teşhis için lazım ama kullanıcı ekranına yakışmıyor.
+    console.error(`[rapor] Gemini ${response.status}:`, err.slice(0, 500));
+    throw new Error(geminiHatasi(response.status, err));
   }
 
   const result = await response.json();
@@ -154,7 +185,11 @@ Kayıtlı adlar: ${nameList}`;
   const start = text.indexOf("[");
   const end = text.lastIndexOf("]");
   if (start === -1 || end === -1 || end <= start) {
-    throw new Error(`Gemini geçerli JSON döndürmedi. Ham yanıt: ${text.slice(0, 300)}`);
+    console.error("[rapor] Gemini beklenen JSON'u döndürmedi:", text.slice(0, 500));
+    throw new Error(
+      "Görsel okunabildi ama tablo çıkarılamadı. Rapor ekranının tamamının göründüğü, "
+      + "kırpılmamış bir ekran görüntüsü ile tekrar deneyin."
+    );
   }
 
   const raw = JSON.parse(text.slice(start, end + 1)) as GeminiRaw[];
