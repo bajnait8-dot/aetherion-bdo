@@ -28,6 +28,47 @@ assert.throws(()=>decodeReport(frame().subarray(0,-1).toString('base64'),REPORT_
 assert.throws(()=>decodeReport(frame(['Foo','foo']).toString('base64'),REPORT_VERSION));
 assert.throws(()=>decodeReport(frame().toString('base64'),'unknown'));
 const overflow=frame();overflow.writeBigUInt64LE(9007199254740992n,33+224);assert.throws(()=>decodeReport(overflow.toString('base64'),REPORT_VERSION));
+// 8 Kasım 2026 yamasının rapor biçimi (v3, opcode 0x1553). Aşağıdaki
+// çerçeve o savaşın gerçek kaydından kesildi: 35 baytlık başlık + Xiuu
+// satırı; uzunluk ve satır sayısı tek satıra göre düzeltildi. Sayılar
+// oyunun sonuç ekranıyla ve kill-feed'le çapraz doğrulandı: savaşın
+// tamamında 30 satır, 156 kill, 552 ölüm, her satırda ölü + yaşam = 2206.
+const V3_GERCEK =
+  '6a010053159c5fc16ff28623005705f42835010000020000000b000101000000000b00013900892e0000000000000000' +
+  '005800690075007500000000000000000000000000000000000000000000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000a17000000000000000000000000000000000000000000000000000000000000' +
+  '00000000000000000000000000000000000400000000000000050000000000000000000000000000000b000000000000' +
+  '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000' +
+  '00000000000000000000000000000000002dfb08000000000085eb0900000000003c000000000000001bd90500000000' +
+  '0004ba010000000000030000000000000079be2700000000000000000000000000000000000000000000000000000000' +
+  '0000000000000000003e02000000000000600600000000000002';
+{
+  const f = Buffer.from(V3_GERCEK, 'hex');
+  assert.equal(f.length, 362);
+  const r = decodeReport(f.toString('base64'), decoder.REPORT_VERSION_V3);
+  assert.equal(r.version, decoder.REPORT_VERSION_V3);
+  assert.equal(r.rows.length, 1);
+  const x = r.rows[0];
+  assert.equal(x.familyName, 'Xiuu');
+  assert.equal(x.classKey, 10);                       // Corsair
+  assert.equal(x.specKey, 0, 'v3 spec taşımıyor, uydurulmamalı');
+  assert.equal(x.stats.kills, 9);
+  assert.equal(x.stats.deaths, 23);
+  assert.equal(x.stats.damageDealt, 588589);
+  assert.equal(x.stats.deathSeconds + x.stats.survivalSeconds, 2206);
+  assert.equal(Buffer.from(x.rawRecordBase64, 'base64').length, 327);
+  assert.equal(Object.keys(x.counters).length, 31);
+  assert.equal(Buffer.from(r.headerBase64, 'base64').length, 35);
+  // Biçimler birbirine karışmamalı
+  assert.throws(() => decodeReport(f.toString('base64'), REPORT_VERSION));
+  assert.throws(() => decodeReport(frame().toString('base64'), decoder.REPORT_VERSION_V3));
+  // Satır sayısı uzunlukla tutmuyorsa reddedilmeli
+  const bozuk = Buffer.from(f);
+  bozuk.writeUInt32LE(2, 28);
+  assert.throws(() => decodeReport(bozuk.toString('base64'), decoder.REPORT_VERSION_V3));
+  assert.ok(decoder.REPORT_VERSIONS.includes(decoder.REPORT_VERSION_V3));
+}
+
 const actor={id:1,guildId:1,isAdmin:false,isGuildAdmin:true};
 const incoming=decodeReport(frame(['NewAlly']).toString('base64'),REPORT_VERSION).rows;
 const existing=[{id:1,inGameName:'OurPlayer',reportGuildId:1,userId:10}];

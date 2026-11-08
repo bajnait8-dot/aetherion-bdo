@@ -16,8 +16,9 @@
  */
 export const REPORT_VERSION = "bdo-report-1a50-v1";
 export const REPORT_VERSION_V2 = "bdo-report-146c-v2";
+export const REPORT_VERSION_V3 = "bdo-report-1553-v3";
 /** Companion bu sürümlerden birini gönderebilir */
-export const REPORT_VERSIONS = [REPORT_VERSION, REPORT_VERSION_V2];
+export const REPORT_VERSIONS = [REPORT_VERSION, REPORT_VERSION_V2, REPORT_VERSION_V3];
 
 type Bicim = {
   surum: string;
@@ -39,6 +40,7 @@ type Bicim = {
 const BICIMLER: Bicim[] = [
   { surum: REPORT_VERSION,    opcode: 0x1a50, baslik: 32, satir: 333, ad: 1, kay: 0,   sayi: 24, sinif: 76, spec: 77 },
   { surum: REPORT_VERSION_V2, opcode: 0x146c, baslik: 29, satir: 323, ad: 8, kay: -14, sayi: 23, sinif: 62, spec: null },
+  { surum: REPORT_VERSION_V3, opcode: 0x1553, baslik: 35, satir: 327, ad: 14, kay: -16, sayi: 28, sinif: 63, spec: null },
 ];
 
 const invalidNameCharacters = new RegExp("[\\p{Cc}\\p{Cs}]", "u");
