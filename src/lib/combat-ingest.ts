@@ -42,6 +42,12 @@ const BICIMLER: Bicim[] = [
   { ad: "1bfd", uzunluk: 363, imza: [0x6b, 1, 0, 0xfd, 0x1b],
     karakter: 9, yon: 77, yonBayt: 1, rakipKarakter: 78, rakipKlan: 140,
     rakipAile: 204, bizAile: 266, konum: [350, 354, 358], kuyruk: 328 },
+  // 8 Kasım 2026 yaması: opcode 0x1080, 362 bayt. Alanlar yeniden dizildi —
+  // rakip klan başa geçti, yön bayrağı rakip karakterden hemen sonra.
+  // Companion'daki `combat_capture.rs` tablosuyla birebir aynı olmalı.
+  { ad: "1080", uzunluk: 362, imza: [0x6a, 1, 0, 0x80, 0x10],
+    rakipKlan: 11, karakter: 73, rakipKarakter: 135, yon: 197, yonBayt: 1,
+    rakipAile: 198, bizAile: 260, konum: [330, 334, 338], kuyruk: 342 },
 ];
 /** 363 bayt base64'te 484 karakter; eski 480'lik sınır yeni kareyi kesiyordu. */
 const EN_UZUN_B64 = 496;

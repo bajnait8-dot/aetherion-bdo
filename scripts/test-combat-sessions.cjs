@@ -27,6 +27,9 @@ function frameV2(kill = true) {
   b[77] = +kill; b.writeFloatLE(-5150.311,350); b.writeFloatLE(-1950.630,354); b.writeFloatLE(48224.359,358);
   return b;
 }
+// 8 Kasım 2026 yamasının karesi: 362 bayt, opcode 0x1080. Gerçek kayıttan.
+const V3_HEX = "6a010080100000060000005200750069006e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000041006c00630061007400720061007a004d006f00720073000000000000000000000000000000000000000000000000000000000000000000000000000000500072006f006d00690074006800650075007300000000000000000000000000000000000000000000000000000000000000000000000000000000000000014d0065007300730053006f006d006500740069006d00650073000000000000000000000000000000000000000000000000000000000000000000000000004d006f007200730000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005bd8a34812a604c429f19ac80000010000000000000000014e51c16ff2862300";
+const frameV3 = () => Buffer.from(V3_HEX, 'hex');
 const raw = frame().toString('base64'), at = Date.now() - 10000;
 function body(seq = 1, extra = {}) { return { id:'test-session-001',warId:12,allianceName:'GoldAether',parserVersion:'bdo-nodewar-11e1-v2',startedAtMs:at,endedAtMs:null,phase:'listening',throughSeq:seq,final:false,events:[{seq,receivedAtMs:at+seq,rawBase64:raw}],...extra }; }
 const actor = { id:7, guildId:3, isAdmin:true, isGuildAdmin:false };
@@ -58,6 +61,25 @@ const {storeCombatBatch,canAccessCombat} = load('src/lib/combat-session-store.ts
   assert.equal(decodeCombatFrame(frame(false).toString('base64')).killerFamily,'ENTRØPY');
   assert.equal(decodeCombatFrame(raw).positionVerified,false);
   for (const mutate of [b=>b[196]=2,b=>b.writeFloatLE(NaN,334),b=>b[0]=0]) { const b=frame();mutate(b);assert.throws(()=>decodeCombatFrame(b.toString('base64'))); }
+  // 8 Kasım 2026 karesi — gerçek kayıttan, oyun sonuç ekranıyla doğrulandı
+  {
+    const v3 = decodeCombatFrame(frameV3().toString('base64'));
+    assert.equal(v3.ourKill, true);
+    assert.equal(v3.ourFamily, 'Mors');
+    assert.equal(v3.opponentFamily, 'MessSometimes');
+    assert.equal(v3.killerFamily, 'Mors');
+    assert.equal(v3.victimFamily, 'MessSometimes');
+    assert.equal(v3.ourCharacter, 'AlcatrazMors');
+    assert.equal(v3.opponentCharacter, 'Promitheus');
+    assert.equal(v3.opponentGuild, 'Ruin');
+    assert.ok(v3.gameX > 300000 && v3.gameX < 400000, 'konum okunmalı');
+    const olum = frameV3(); olum[197] = 0;
+    assert.equal(decodeCombatFrame(olum.toString('base64')).killerFamily, 'MessSometimes');
+    for (const mutate of [b=>b[197]=9, b=>b.writeFloatLE(NaN,330), b=>b[0]=0]) {
+      const b = frameV3(); mutate(b);
+      assert.throws(()=>decodeCombatFrame(b.toString('base64')), `v3 bozulunca reddetmeli`);
+    }
+  }
   // Yeni kare de çözülmeli: Companion bunu gönderiyor, sunucu reddederse
   // bütün savaş uygulamanın yerel kuyruğunda kalıyor.
   {
